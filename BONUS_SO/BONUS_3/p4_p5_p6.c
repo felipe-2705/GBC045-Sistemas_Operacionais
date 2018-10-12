@@ -1,7 +1,7 @@
 /// bonus comunicaçao entre processos
 ///Autor: Felipe Augusto Ferreira de Castro
 ///Universidade federal de uberlândia
-/// processos produtores p1,p2,p3
+/// processos produtores p4,p5,p6
 
 
 #include <stdio.h>
@@ -23,6 +23,7 @@ struct fila_1{
   int prox; // proxima posiçao a ser incirida, quanto o valor for 10 a fila estara cheia;
   sem_t mutex;
   sem_t cheia;
+  sem_t pid;
   pid_t process4;
   int fila[fila_sz];
 };
@@ -50,6 +51,11 @@ int fila1_init(struct fila_1* f)
     printf ("erro ao iniciar o semafaro da fila 1\n");
     return 0;
   }
+  if(sem_init(&f->pid,1,0)==-1)
+  {
+    printf ("erro ao iniciar o semafaro da fila 1\n");
+    return 0;
+  }
 
 
   return 1;
@@ -69,45 +75,24 @@ int fila1_cheia(struct fila_1* f)
   return 0;
 }
 
-int insere_fila1(struct fila_1* f,int i)
-{
-  if(f==NULL)
-  {
-    return -1;
-  }
-sem_wait(&f->mutex);
-  if(fila1_cheia(f))
-  {
-    //kill(pid4,SIGURS1);  // envia sinal de fila cheia para o processo 4;
-    sem_post(&f->cheia);
-    kill(f->process4,3);
-
-    return 0;  // fila esta cheia;
-  }else{
-
-
-    (f->prox) = (f->prox)+1;
-
-  }
-sem_post(&f->mutex);
-  return 1;
-
-}
-////////////////////////////////////////////////////
-void rotina(int p)
+void remove_fila(int p)
 {
  sem_wait(&signal_handler->cheia);
   for(int i=0;i<fila_sz;i++)
   {
-
+    printf("%d\n",signal_handler->fila[i]);
   }
   signal_handler->prox=0;
  sem_post(&signal_handler->mutex);
 }
 
+
+////////////////////////////////////////////////////
+
+
 int main ()
 {
-pid_t pids; // guardo o pid do processo; nao sera diferenciado os tres filhos, pois nao sera necessario
+pid_t pids[2]={-1,-1}; // guardo o pid do processo; nao sera diferenciado os tres filhos, pois nao sera necessario
 int status; // estatus para o wait();
 key_t key =43210; // chave de acesso para a fila compartilhada;
 struct fila_1 * fila_ptr;  // ponteiro para a area compartilhada formatada
@@ -115,7 +100,7 @@ void* shared_memory = (void*)0; // um ponteiro nulo para receber o endereço da 
 int shmid;
 
 
- pidpai=getpid();
+
 //////////////////////////////////////////////////////////////
 // criando e formatando a fila compartilhada 1;
     shmid = shmget(key,MEM_SZ,0666|IPC_CREAT);   // cria uma area de escrita e leitura entre processos
@@ -139,24 +124,29 @@ if(shmid== -1)
       }
 
       //////////////////////////////////////// fim da criaçao da area compatilhada /////////////////////////////
-  // criando processos produtores p1,p2,p3;
+  // criando processos produtores p5,p6;
+   fila_ptr->process4 = getpid();
+   sem_post(&fila_ptr->pid);// sinaliza que o pid esta colocado
 
-  for(int i=0;i<3;i++)
+  for(int i=0;i<2;i++)
   {
-    pids=fork();
-    if(pids==0)break;
+    pids[i]=fork();
+    if(pids[i]==0)break;
   };
 /// processos filhos
-  if(pids==0)
+  if(pids[0]==0 && pids[1]!=0) //processo 5
   {
-    while(1){
-   insere_fila1(fila_ptr,(rand()%1000)+1)==0)// insere na fila o valor rando de 1 a 1000;
- };
-  }else{
-    //processo pai espera o signal de fila cheia;
+        getchar();
+  }
+  if(pids[0]!=0 && pids[1]==0)//processo 6
+  {
+        getchar();
+  }
+  if(pids[0]!=0 && pids[1]!=0){ // processo 4
+
   while(1){
     signal_handler=fila_ptr;
-     signal(3,rotina);
+     signal(3,remove_fila);
 
    };
   }

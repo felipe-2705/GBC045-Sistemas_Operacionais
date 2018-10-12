@@ -23,6 +23,7 @@ struct fila_1{
   int prox; // proxima posiçao a ser incirida, quanto o valor for 10 a fila estara cheia;
   sem_t mutex;
   sem_t cheia;
+  sem_t pid;
   pid_t process4;
   int fila[fila_sz];
 };
@@ -50,6 +51,12 @@ int fila1_init(struct fila_1* f)
     printf ("erro ao iniciar o semafaro da fila 1\n");
     return 0;
   }
+  if(sem_init(&f->pid,1,0)==-1)
+  {
+    printf ("erro ao iniciar o semafaro da fila 1\n");
+    return 0;
+  }
+
 
 
   return 1;
@@ -85,7 +92,8 @@ sem_wait(&f->mutex);
     return 0;  // fila esta cheia;
   }else{
 
-
+     f->fila[f->prox]=i;
+     printf("%d inserido na fila\n",i);
     (f->prox) = (f->prox)+1;
 
   }
@@ -93,17 +101,10 @@ sem_post(&f->mutex);
   return 1;
 
 }
-////////////////////////////////////////////////////
-void rotina(int p)
-{
- sem_wait(&signal_handler->cheia);
-  for(int i=0;i<fila_sz;i++)
-  {
 
-  }
-  signal_handler->prox=0;
- sem_post(&signal_handler->mutex);
-}
+
+////////////////////////////////////////////////////
+
 
 int main ()
 {
@@ -115,7 +116,7 @@ void* shared_memory = (void*)0; // um ponteiro nulo para receber o endereço da 
 int shmid;
 
 
- pidpai=getpid();
+
 //////////////////////////////////////////////////////////////
 // criando e formatando a fila compartilhada 1;
     shmid = shmget(key,MEM_SZ,0666|IPC_CREAT);   // cria uma area de escrita e leitura entre processos
@@ -132,15 +133,11 @@ if(shmid== -1)
       }
       fila_ptr = (struct fila_1*)shared_memory;  // convertendo a area na estrutura de fila_1
 
-      if(fila1_init(fila_ptr)!=1)
-      {
-         exit(-1);
 
-      }
 
       //////////////////////////////////////// fim da criaçao da area compatilhada /////////////////////////////
   // criando processos produtores p1,p2,p3;
-
+sem_wait(&fila_ptr->pid);
   for(int i=0;i<3;i++)
   {
     pids=fork();
@@ -150,16 +147,12 @@ if(shmid== -1)
   if(pids==0)
   {
     while(1){
-   insere_fila1(fila_ptr,(rand()%1000)+1)==0)// insere na fila o valor rando de 1 a 1000;
+   insere_fila1(fila_ptr,(rand()%1000)+1);// insere na fila o valor rando de 1 a 1000;
  };
-  }else{
-    //processo pai espera o signal de fila cheia;
-  while(1){
-    signal_handler=fila_ptr;
-     signal(3,rotina);
+}else{
+    wait(&status);
+}
 
-   };
-  }
   getchar();
   return 1;
 }
